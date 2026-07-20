@@ -5,21 +5,8 @@ No build tools, bundlers, or game engines - just static files.
 
 ## How to run it
 
-Because everything is plain `<script>` tags (not ES modules), you can just open
-the file directly:
-
-1. Double-click `index.html` (or open it with `File > Open` in your browser).
-
-If your browser blocks local `file://` access for some reason, any static file
-server works too, for example:
-
-```
-npx serve .
-# or
-python -m http.server 8000
-```
-
-then visit `http://localhost:8000` (or whatever port it prints).
+Everything is plain `<script>` tags (not ES modules), so just double-click
+`index.html` (or open it with `File > Open` in your browser) - no server needed.
 
 ## Controls
 
