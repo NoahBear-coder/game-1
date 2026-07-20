@@ -71,23 +71,58 @@
   const finish = { x: 2500, y: 3800 - BRIDGE_WIDTH / 2, width: 50, height: BRIDGE_WIDTH };
 
   // --- Obstacles ------------------------------------------------------------
-  // Distributed across sections: at least one in open, tunnel, and bridge.
-  // NOTE: x/y are the TOP-LEFT corner (matching collision.js's rect contract),
-  // not the center - the values below are the intended center point minus half
-  // the width/height.
-  const obstacles = [
-    // Open section: a boulder just off the centerline.
-    { x: 285, y: 4615, width: 70, height: 70, section: 'open' },
-    { x: 470, y: 4370, width: 60, height: 60, section: 'open' },
+  // Obstacles are generated randomly within each section's drivable band, so
+  // the layout differs every run (and is re-rolled on each reset). Placement
+  // is constrained to always leave a passable gap, so the track stays winnable.
+  //
+  // Each section config describes: the axis the track runs along ('v' = the
+  // open section runs vertically, 'h' = tunnel/bridge run horizontally),
+  // the fixed center coordinate on the cross-axis, the [start, end] range along
+  // the travel axis to scatter obstacles into, the track half-width, how many
+  // obstacles to place, and the min/max obstacle size.
+  // Minimum free lane (px) kept on one side of every obstacle. The car's
+  // collision radius is 28 (diameter 56), so this leaves a comfortable
+  // ~26px steering corridor for its center to thread through.
+  const PASS_CLEARANCE = 82;
 
-    // Tunnel section: obstacles forcing the car to weave inside the narrow corridor.
-    { x: 960, y: 3740, width: 40, height: 40, section: 'tunnel' },
-    { x: 1230, y: 3800, width: 40, height: 40, section: 'tunnel' },
-
-    // Bridge section: a barrel/crate near the rail.
-    { x: 2022, y: 3732, width: 55, height: 55, section: 'bridge' },
-    { x: 2272, y: 3812, width: 55, height: 55, section: 'bridge' },
+  const OBSTACLE_SECTIONS = [
+    { section: 'open', axis: 'v', center: 400, along: [4300, 4950], halfWidth: OPEN_WIDTH / 2, count: 2, size: [55, 72] },
+    { section: 'tunnel', axis: 'h', center: 3800, along: [900, 1560], halfWidth: TUNNEL_WIDTH / 2, count: 2, size: [36, 46] },
+    { section: 'bridge', axis: 'h', center: 3800, along: [1850, 2440], halfWidth: BRIDGE_WIDTH / 2, count: 2, size: [48, 60] },
   ];
+
+  function makeObstacles() {
+    const result = [];
+    OBSTACLE_SECTIONS.forEach((cfg) => {
+      const [a0, a1] = cfg.along;
+      const band = (a1 - a0) / cfg.count; // give each obstacle its own stretch of the section
+      for (let i = 0; i < cfg.count; i++) {
+        const size = cfg.size[0] + Math.random() * (cfg.size[1] - cfg.size[0]);
+        const s = size / 2;
+        // Position along the travel axis, kept inside this obstacle's band.
+        const along = a0 + i * band + s + Math.random() * Math.max(0, band - 2 * s);
+        // Lateral offset from center, bounded so a PASS_CLEARANCE gap always remains.
+        const maxLat = Math.max(0, cfg.halfWidth - s - PASS_CLEARANCE);
+        const lat = (Math.random() * 2 - 1) * maxLat;
+        const cx = cfg.axis === 'v' ? cfg.center + lat : along;
+        const cy = cfg.axis === 'v' ? along : cfg.center + lat;
+        // Stored as top-left corner (matching collision.js's rect contract).
+        result.push({ x: cx - s, y: cy - s, width: size, height: size, section: cfg.section });
+      }
+    });
+    return result;
+  }
+
+  const obstacles = makeObstacles();
+
+  // Re-roll obstacle positions in place, so existing references to the array
+  // (in main.js and the renderer) stay valid.
+  function randomizeObstacles() {
+    const next = makeObstacles();
+    obstacles.length = 0;
+    next.forEach((o) => obstacles.push(o));
+    return obstacles;
+  }
 
   const sectionColors = {
     open: '#5a8f4a',
@@ -110,5 +145,6 @@
     finish,
     sectionColors,
     sectionLabels,
+    randomizeObstacles,
   };
 })();

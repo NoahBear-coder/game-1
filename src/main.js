@@ -22,6 +22,16 @@
   const input = createInput();
   const gameState = createGameState();
 
+  // Reset the car to the start, recenter the camera, re-roll the obstacle
+  // layout, and return to the PLAYING state.
+  function resetGame() {
+    resetCar(car, World.start);
+    camera.x = World.start.x;
+    camera.y = World.start.y;
+    World.randomizeObstacles();
+    backToPlaying(gameState);
+  }
+
   let lastTime = performance.now();
 
   function loop(now) {
@@ -43,17 +53,11 @@
     } else if (gameState.status === STATUS.CRASHED) {
       gameState.crashTimer -= dt;
       if (gameState.crashTimer <= 0) {
-        resetCar(car, World.start);
-        camera.x = World.start.x;
-        camera.y = World.start.y;
-        backToPlaying(gameState);
+        resetGame();
       }
     } else if (gameState.status === STATUS.WON) {
       if (input.restart) {
-        resetCar(car, World.start);
-        camera.x = World.start.x;
-        camera.y = World.start.y;
-        backToPlaying(gameState);
+        resetGame();
       }
     }
 
