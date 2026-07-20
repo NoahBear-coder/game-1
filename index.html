@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Top-Down Driver</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0d0f0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 100vh;
+    font-family: sans-serif;
+  }
+  canvas {
+    background: #000;
+    border: 2px solid #444;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <canvas id="game" width="800" height="600"></canvas>
+
+  <!-- Plain (non-module) scripts, order matters: each file attaches its
+       exports to the shared window.Game namespace; main.js runs last and
+       wires everything together. This lets the game run directly from a
+       file:// URL with no build step or dev server required. -->
+  <script src="src/collision.js"></script>
+  <script src="src/world.js"></script>
+  <script src="src/car.js"></script>
+  <script src="src/camera.js"></script>
+  <script src="src/gameState.js"></script>
+  <script src="src/render.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
