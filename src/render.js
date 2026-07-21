@@ -69,6 +69,31 @@
     ctx.closePath();
   }
 
+  // A simple saguaro-style cactus silhouette, for scattering across the
+  // desert background (decorative only, not a collidable obstacle).
+  function drawCactus(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.9, s * 0.5, s * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#3d6b3a';
+    ctx.strokeStyle = '#2a4a28';
+    ctx.lineWidth = 1.5;
+
+    roundRectPath(ctx, x - s * 0.16, y - s * 0.9, s * 0.32, s * 0.9, s * 0.16);
+    ctx.fill();
+    ctx.stroke();
+
+    roundRectPath(ctx, x - s * 0.38, y - s * 0.55, s * 0.2, s * 0.4, s * 0.1);
+    ctx.fill();
+    ctx.stroke();
+
+    roundRectPath(ctx, x + s * 0.18, y - s * 0.7, s * 0.2, s * 0.4, s * 0.1);
+    ctx.fill();
+    ctx.stroke();
+  }
+
   // --- Environment ---------------------------------------------------------
   function drawEnvironment(ctx, canvasWidth, canvasHeight, world, offset) {
     // Grass base.
@@ -141,17 +166,28 @@
       }
     }
 
-    // Sand dunes flanking the desert stretch.
+    // How far above/below the road the themed backdrop (dunes/canopy)
+    // extends. Scaled off canvasHeight rather than a fixed pixel value so
+    // the flanking scenery always reaches past both screen edges on a
+    // fullscreen canvas - a fixed small margin would only cover a thin band
+    // hugging the road, leaving plain grass (and no trees/cacti at all)
+    // everywhere above and below it on a tall window.
+    const flankMargin = Math.max(260, canvasHeight * 0.7);
+
+    // Sand dunes flanking the desert stretch, on both sides of the road.
     if (regions.desert) {
       const d = regions.desert;
       const x = d.minX - 60 + offset.x;
-      const y = d.cy - d.maxW / 2 - 100 + offset.y;
+      const y = d.cy - d.maxW / 2 - flankMargin + offset.y;
       const w = d.maxX - d.minX + 120;
-      const h = d.maxW + 200;
+      const h = d.maxW + flankMargin * 2;
       ctx.fillStyle = COLORS.sand;
       ctx.fillRect(x, y, w, h);
-      // Dune ridges: soft overlapping ellipses in a slightly darker sand tone.
-      for (let i = 0; i < 26; i++) {
+      // Dune ridges: soft overlapping ellipses in a slightly darker sand
+      // tone. Count scales with area so density stays consistent regardless
+      // of window size.
+      const duneCount = Math.round((w * h) / 55000);
+      for (let i = 0; i < duneCount; i++) {
         const rx = x + hash(i, 11) * w;
         const ry = y + hash(i, 12) * h;
         ctx.fillStyle = 'rgba(0,0,0,0.06)';
@@ -159,28 +195,48 @@
         ctx.ellipse(rx, ry, 40 + hash(i, 13) * 50, 14 + hash(i, 14) * 14, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+      // Cacti scattered across the dunes, same area-scaled density.
+      const cactusCount = Math.round((w * h) / 65000);
+      for (let i = 0; i < cactusCount; i++) {
+        const rx = x + hash(i, 41) * w;
+        const ry = y + hash(i, 42) * h;
+        const s = 26 + hash(i, 43) * 22;
+        drawCactus(ctx, rx, ry, s);
+      }
     }
 
-    // Dense tree canopy flanking the forest stretch.
+    // Dense tree canopy flanking the forest stretch, on both sides of the road.
     if (regions.forest) {
       const f = regions.forest;
       const x = f.minX - 80 + offset.x;
-      const y = f.cy - f.maxW / 2 - 140 + offset.y;
+      const y = f.cy - f.maxW / 2 - flankMargin + offset.y;
       const w = f.maxX - f.minX + 160;
-      const h = f.maxW + 280;
+      const h = f.maxW + flankMargin * 2;
       ctx.fillStyle = COLORS.forestFloor;
       ctx.fillRect(x, y, w, h);
       // Overlapping canopy blobs, scattered by section hash so they're stable
       // frame-to-frame but vary in size/shade for a dense-woods look. Drawn
       // over the whole region - drawTrack paints the road on top afterward,
       // so trees only end up reading as flanking the road, not covering it.
+      // Counts scale with area so density stays consistent on any window size.
       const treeColors = [COLORS.treeDark, COLORS.treeMid, COLORS.treeLight];
-      for (let i = 0; i < 90; i++) {
+      const canopyCount = Math.round((w * h) / 6500);
+      for (let i = 0; i < canopyCount; i++) {
         const rx = x + hash(i, 21) * w;
         const ry = y + hash(i, 22) * h;
         ctx.fillStyle = treeColors[Math.floor(hash(i, 23) * treeColors.length)];
         ctx.beginPath();
-        ctx.ellipse(rx, ry, 22 + hash(i, 24) * 20, 22 + hash(i, 25) * 20, 0, 0, Math.PI * 2);
+        ctx.ellipse(rx, ry, 20 + hash(i, 24) * 18, 20 + hash(i, 25) * 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // A closer, smaller undergrowth layer on top for extra depth/density.
+      const undergrowthCount = Math.round((w * h) / 10000);
+      for (let i = 0; i < undergrowthCount; i++) {
+        const rx = x + hash(i, 31) * w;
+        const ry = y + hash(i, 32) * h;
+        ctx.fillStyle = treeColors[Math.floor(hash(i, 33) * treeColors.length)];
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, 10 + hash(i, 34) * 10, 10 + hash(i, 35) * 10, 0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
