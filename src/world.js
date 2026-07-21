@@ -137,6 +137,25 @@
     { text: 'BRIDGE', x: 1950, y: 3700, section: 'bridge' },
   ];
 
+  // Returns the section tag ('open', 'turn', 'tunnel', 'bridge') of whichever
+  // centerline point is nearest (x, y) - a cheap way to tell which part of
+  // the track the car is currently on. Used to spawn section-local hazards
+  // (birds) only once the player actually reaches that section.
+  function getSectionAt(x, y) {
+    let best = null;
+    let bestDist = Infinity;
+    centerline.forEach((p) => {
+      const dx = p.x - x;
+      const dy = p.y - y;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        best = p;
+      }
+    });
+    return best ? best.section : null;
+  }
+
   window.Game = window.Game || {};
   window.Game.World = {
     start,
@@ -146,5 +165,6 @@
     sectionColors,
     sectionLabels,
     randomizeObstacles,
+    getSectionAt,
   };
 })();

@@ -281,6 +281,107 @@
     ctx.fillText('FINISH', x + finish.width / 2, y - 26);
   }
 
+  // --- Bullets ---------------------------------------------------------------
+  function drawBullets(ctx, bullets, offset) {
+    bullets.forEach((b) => {
+      const x = b.x + offset.x;
+      const y = b.y + offset.y;
+      ctx.fillStyle = 'rgba(255,180,60,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(x - b.vx * 0.01, y - b.vy * 0.01, b.radius * 1.8, b.radius * 0.9, Math.atan2(b.vy, b.vx), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff2c2';
+      ctx.beginPath();
+      ctx.arc(x, y, b.radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // --- Birds -----------------------------------------------------------------
+  function drawBirds(ctx, birds, offset) {
+    const t = Date.now() / 1000;
+    birds.forEach((b) => {
+      const x = b.x + offset.x;
+      // Small vertical bob for a natural flight wobble (purely visual).
+      const y = b.y + offset.y + Math.sin(t * 5 + b.phase) * 3;
+      const flap = Math.sin(t * 14 + b.phase);
+      const facing = b.axis === 'v' ? (b.dir < 0 ? -Math.PI / 2 : Math.PI / 2) : (b.dir < 0 ? Math.PI : 0);
+
+      // Ground shadow so it reads as flying above the road.
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 16, b.radius * 0.9, b.radius * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Soft halo behind the bird - barely visible in daylight but keeps it
+      // from vanishing against the dark tunnel surface/shadow.
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, b.radius * 2.4);
+      glow.addColorStop(0, 'rgba(255,247,214,0.55)');
+      glow.addColorStop(1, 'rgba(255,247,214,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, b.radius * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(facing);
+
+      // Wings: a simple V-shape that flaps via a sine wave. Outlined in a
+      // light color so the silhouette reads against dark backgrounds too.
+      ctx.strokeStyle = '#f2e9c9';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-b.radius, -flap * b.radius * 0.8);
+      ctx.lineTo(0, 2);
+      ctx.lineTo(b.radius, -flap * b.radius * 0.8);
+      ctx.stroke();
+      ctx.strokeStyle = '#3a2f22';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-b.radius, -flap * b.radius * 0.8);
+      ctx.lineTo(0, 2);
+      ctx.lineTo(b.radius, -flap * b.radius * 0.8);
+      ctx.stroke();
+
+      // Body.
+      ctx.fillStyle = '#4a3d2e';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, b.radius * 0.4, b.radius * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f2e9c9';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.restore();
+    });
+  }
+
+  // --- Debris particles -----------------------------------------------------
+  function drawParticles(ctx, particles, offset) {
+    particles.forEach((p) => {
+      const x = p.x + offset.x;
+      const y = p.y + offset.y;
+      const alpha = Math.max(0, p.life / p.maxLife);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      if (p.shape === 'feather') {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size, p.size * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      }
+      ctx.restore();
+    });
+  }
+
   // --- Car -----------------------------------------------------------------
   function drawCar(ctx, car, offset, inTunnel) {
     const length = 60;
@@ -393,10 +494,35 @@
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Arrow Keys / WASD to drive   •   Avoid the barrels   •   Reach the FINISH line',
+      'Arrow Keys / WASD to drive   •   Space to shoot barrels   •   Reach the FINISH line',
       canvasWidth / 2,
       canvasHeight - 16
     );
+  }
+
+  function drawAmmoHud(ctx, canvasWidth, ammo, maxAmmo) {
+    const panelW = 140, panelH = 34;
+    const x = canvasWidth - panelW - 12;
+    const y = 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    roundRectPath(ctx, x, y, panelW, panelH, 8);
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f2f2f2';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('AMMO', x + 10, y + panelH / 2 + 1);
+
+    const bulletW = 8, bulletH = 16, gap = 5;
+    for (let i = 0; i < maxAmmo; i++) {
+      const bx = x + 58 + i * (bulletW + gap);
+      const by = y + panelH / 2 - bulletH / 2;
+      ctx.fillStyle = i < ammo ? '#ffd23f' : 'rgba(255,255,255,0.18)';
+      roundRectPath(ctx, bx, by, bulletW, bulletH, 3);
+      ctx.fill();
+    }
+    ctx.textBaseline = 'alphabetic';
   }
 
   function drawSplashScreen(ctx, canvasWidth, canvasHeight) {
@@ -448,6 +574,7 @@
       ['to reach the checkered FINISH line.', '#cfe8ff'],
       ['', '#fff'],
       ['Dodge the orange barrels — a crash resets you', '#ff9a7a'],
+      ['Press SPACE to shoot a barrel — you only get 10 shots', '#ffd23f'],
     ];
     let y = py + 40;
     instructions.forEach(([line, color]) => {
@@ -491,7 +618,7 @@
   }
 
   // --- Main entry ----------------------------------------------------------
-  function render(ctx, canvasWidth, canvasHeight, world, car, offset, gameState) {
+  function render(ctx, canvasWidth, canvasHeight, world, car, offset, gameState, bullets, birds, particles) {
     if (gameState.status === 'splash') {
       drawSplashScreen(ctx, canvasWidth, canvasHeight);
       return;
@@ -502,6 +629,8 @@
     drawTrack(ctx, world, offset);
     drawFinish(ctx, world.finish, offset);
     drawObstacles(ctx, world.obstacles, offset);
+    if (bullets) drawBullets(ctx, bullets, offset);
+    if (birds) drawBirds(ctx, birds, offset);
 
     // Detect whether the car is under the tunnel (for headlight intensity).
     const regions = getRegions(world);
@@ -509,10 +638,12 @@
     const inTunnel = !!(t && car.x >= t.minX && car.x <= t.maxX &&
       car.y >= t.cy - t.maxW / 2 && car.y <= t.cy + t.maxW / 2);
     drawCar(ctx, car, offset, inTunnel);
+    if (particles) drawParticles(ctx, particles, offset);
 
     drawSectionLabels(ctx, world, offset);
     drawVignette(ctx, canvasWidth, canvasHeight);
     drawInstructions(ctx, canvasWidth, canvasHeight);
+    drawAmmoHud(ctx, canvasWidth, car.ammo, window.Game.Car.MAX_AMMO);
 
     if (gameState.status === 'crashed') {
       drawOverlayMessage(ctx, canvasWidth, canvasHeight, ['CRASHED!', 'Resetting...'], '#ff5555');

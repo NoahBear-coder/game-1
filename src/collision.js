@@ -32,7 +32,21 @@ function checkFinishCollision(car, finishRect) {
   return circleRectCollision(car.x, car.y, car.radius, finishRect);
 }
 
-const CollisionAPI = { clamp, circleRectCollision, checkObstacleCollisions, checkFinishCollision };
+// True if two circles overlap.
+function circleCircleCollision(ax, ay, ar, bx, by, br) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  const r = ar + br;
+  return dx * dx + dy * dy < r * r;
+}
+
+const CollisionAPI = {
+  clamp,
+  circleRectCollision,
+  circleCircleCollision,
+  checkObstacleCollisions,
+  checkFinishCollision,
+};
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CollisionAPI;

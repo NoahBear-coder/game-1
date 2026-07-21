@@ -15,20 +15,31 @@
   const { createCamera, updateCamera, getViewOffset } = window.Game.Camera;
   const { checkObstacleCollisions, checkFinishCollision } = window.Game.Collision;
   const { STATUS, createGameState, startGame, triggerCrash, triggerWin, backToPlaying } = window.Game.GameState;
+  const { createBulletSystem, resetBullets, fireBullet, updateBullets, checkBulletObstacleHits } = window.Game.Bullets;
+  const { createBirdSystem, resetBirds, updateBirds, checkBirdCollisions, checkBulletBirdHits } = window.Game.Birds;
+  const { createParticleSystem, resetParticles, spawnBarrelDebris, spawnBirdDebris, updateParticles } = window.Game.Particles;
   const { render } = window.Game.Render;
 
   const car = createCar(World.start.x, World.start.y, World.start.angle);
   const camera = createCamera(World.start.x, World.start.y);
   const input = createInput();
   const gameState = createGameState();
+  const bulletSystem = createBulletSystem();
+  const birdSystem = createBirdSystem();
+  const particleSystem = createParticleSystem();
 
   // Reset the car to the start, recenter the camera, re-roll the obstacle
-  // layout, and return to the PLAYING state.
+  // layout, clear any in-flight bullets, reset the birds, clear debris, and
+  // return to the PLAYING state.
   function resetGame() {
     resetCar(car, World.start);
     camera.x = World.start.x;
     camera.y = World.start.y;
     World.randomizeObstacles();
+    resetBullets(bulletSystem);
+    resetBirds(birdSystem);
+    resetParticles(particleSystem);
+    input.firePressed = false;
     backToPlaying(gameState);
   }
 
@@ -42,10 +53,28 @@
       if (input.start) {
         startGame(gameState);
       }
+      // Space doubles as both "start" and "fire" - drop any fire trigger
+      // queued from the same key press so gameplay doesn't open with a
+      // phantom shot.
+      input.firePressed = false;
     } else if (gameState.status === STATUS.PLAYING) {
       updateCar(car, input, dt);
 
-      if (checkObstacleCollisions(car, World.obstacles)) {
+      if (input.firePressed) {
+        fireBullet(bulletSystem, car);
+      }
+      input.firePressed = false;
+
+      updateBullets(bulletSystem, dt);
+      checkBulletObstacleHits(bulletSystem, World.obstacles).forEach((h) =>
+        spawnBarrelDebris(particleSystem, h.x, h.y)
+      );
+      checkBulletBirdHits(bulletSystem, birdSystem.birds).forEach((h) =>
+        spawnBirdDebris(particleSystem, h.x, h.y)
+      );
+      updateBirds(birdSystem, dt, World.getSectionAt(car.x, car.y));
+
+      if (checkObstacleCollisions(car, World.obstacles) || checkBirdCollisions(car, birdSystem.birds)) {
         triggerCrash(gameState);
       } else if (checkFinishCollision(car, World.finish)) {
         triggerWin(gameState);
@@ -61,9 +90,21 @@
       }
     }
 
+    updateParticles(particleSystem, dt);
     updateCamera(camera, car, dt);
     const offset = getViewOffset(camera, CANVAS_WIDTH, CANVAS_HEIGHT);
-    render(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, World, car, offset, gameState);
+    render(
+      ctx,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT,
+      World,
+      car,
+      offset,
+      gameState,
+      bulletSystem.bullets,
+      birdSystem.birds,
+      particleSystem.particles
+    );
 
     requestAnimationFrame(loop);
   }

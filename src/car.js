@@ -8,9 +8,10 @@
   const MAX_REVERSE_SPEED = -160; // px/s backward
   const TURN_RATE = 2.6; // radians/s at full speed
   const RADIUS = 28; // car collision radius (matches the doubled car sprite in render.js)
+  const MAX_AMMO = 10;
 
   function createCar(x, y, angle) {
-    return { x, y, angle, speed: 0, radius: RADIUS };
+    return { x, y, angle, speed: 0, radius: RADIUS, ammo: MAX_AMMO };
   }
 
   function resetCar(car, start) {
@@ -18,10 +19,19 @@
     car.y = start.y;
     car.angle = start.angle;
     car.speed = 0;
+    car.ammo = MAX_AMMO;
   }
 
   function createInput() {
-    const input = { forward: false, backward: false, left: false, right: false, restart: false, start: false };
+    const input = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      restart: false,
+      start: false,
+      firePressed: false, // one-shot: true for a single frame per key press, not while held
+    };
 
     const keyMap = {
       ArrowUp: 'forward',
@@ -48,6 +58,11 @@
       if (startKeys.has(e.code)) {
         input.start = true;
         e.preventDefault();
+      }
+      // e.repeat is true for OS key-repeat while held, so this only fires
+      // once per actual key press regardless of how long Space is held.
+      if (e.code === 'Space' && !e.repeat) {
+        input.firePressed = true;
       }
     });
 
@@ -92,5 +107,5 @@
   }
 
   window.Game = window.Game || {};
-  window.Game.Car = { createCar, resetCar, createInput, updateCar, RADIUS };
+  window.Game.Car = { createCar, resetCar, createInput, updateCar, RADIUS, MAX_AMMO };
 })();

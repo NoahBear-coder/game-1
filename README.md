@@ -16,18 +16,21 @@ Everything is plain `<script>` tags (not ES modules), so just double-click
 | Brake/Reverse | `Arrow Down` or `S` |
 | Steer left    | `Arrow Left` or `A` |
 | Steer right   | `Arrow Right` or `D` |
-| Start (from splash screen) | `Enter` or `Space` |
+| Shoot         | `Space` (also starts the game from the splash screen) |
 | Restart after winning | `R` |
 
 On launch you'll see a splash screen with the title and full instructions;
 press `Enter` or `Space` to start driving.
 
 Drive from the start, through the open road, into the tunnel, across the
-bridge, and reach the checkered **FINISH** line. Avoid the red obstacles -
-hitting one crashes the car, shows a "CRASHED!" message, and automatically
-resets it back to the start after a moment (no key press needed). Reaching
-the finish line shows a "YOU WIN!" message; press `R` to reset and play again
-without reloading the page.
+bridge, and reach the checkered **FINISH** line. Avoid the orange hazard
+barrels - hitting one crashes the car, shows a "CRASHED!" message, and
+automatically resets it back to the start after a moment (no key press
+needed). You start each run with **5 bullets**; press `Space` to fire one
+from the front of the car and destroy a barrel in its path. Reaching the
+finish line shows a "YOU WIN!" message; press `R` to reset and play again
+without reloading the page. Every reset (crash or win) re-rolls the barrel
+layout and refills your ammo.
 
 ## Project structure
 
@@ -37,7 +40,8 @@ src/
   collision.js           Circle-vs-rectangle collision detection (car vs. obstacles/finish)
   world.js                Track layout: centerline points, section colors/labels,
                            obstacles, and the finish rectangle
-  car.js                  Car state, arcade-style movement physics, and keyboard input
+  car.js                  Car state (incl. ammo), arcade-style movement physics, and keyboard input
+  bullets.js              Firing, bullet movement, and bullet-vs-obstacle hit resolution
   camera.js               Viewport/camera that smoothly follows the car
   gameState.js             Game state machine: playing / crashed / won
   render.js               All canvas drawing (track, obstacles, car, UI overlays)
@@ -60,12 +64,20 @@ Node's CommonJS `require`, which is what the tests use.
   section, and ends at a "finish" gate. `render.js` draws it as a thick
   stroked polyline, colored per section, so the sections are visually
   distinct.
-- **Obstacles**: six static obstacles are defined in `world.js`, at least one
-  per named section (open, tunnel, bridge). Collision uses a simple
-  circle-vs-axis-aligned-rectangle check in `collision.js`.
-- **Car**: `car.js` holds position/angle/speed and applies simple arcade
-  physics (acceleration, friction, turning proportional to speed). Input
-  from both arrow keys and WASD is normalized into the same logical actions.
+- **Obstacles**: `world.js` procedurally generates two obstacles per named
+  section (open, tunnel, bridge) within a random position/size, always
+  leaving a guaranteed passable gap so the track stays winnable. The layout
+  is re-rolled via `World.randomizeObstacles()` on every reset (crash or
+  win). Collision uses a simple circle-vs-axis-aligned-rectangle check in
+  `collision.js`.
+- **Car**: `car.js` holds position/angle/speed/ammo and applies simple
+  arcade physics (acceleration, friction, turning proportional to speed).
+  Input from both arrow keys and WASD is normalized into the same logical
+  actions.
+- **Bullets**: `bullets.js` fires a bullet from the car's nose when `Space`
+  is pressed (capped at 10 per run via `car.ammo`), moves bullets each frame,
+  and destroys the first obstacle each bullet touches - reusing
+  `collision.js`'s circle-rect check rather than duplicating the math.
 - **Camera**: `camera.js` exponentially smooths the camera position toward
   the car's position and returns a screen offset so the car stays centered
   in the fixed 800x600 canvas.
