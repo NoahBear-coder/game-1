@@ -8,22 +8,20 @@
     margin: 0;
     padding: 0;
     background: #0d0f0a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%;
     height: 100%;
-    min-height: 100vh;
+    overflow: hidden;
     font-family: sans-serif;
   }
   canvas {
+    display: block;
     background: #000;
-    border: 2px solid #444;
     image-rendering: pixelated;
   }
 </style>
 </head>
 <body>
-  <canvas id="game" width="800" height="600"></canvas>
+  <canvas id="game"></canvas>
 
   <!-- Plain (non-module) scripts, order matters: each file attaches its
        exports to the shared window.Game namespace; main.js runs last and
@@ -34,6 +32,7 @@
   <script src="src/car.js"></script>
   <script src="src/bullets.js"></script>
   <script src="src/birds.js"></script>
+  <script src="src/branches.js"></script>
   <script src="src/particles.js"></script>
   <script src="src/camera.js"></script>
   <script src="src/gameState.js"></script>

@@ -61,6 +61,20 @@
     );
   }
 
+  // Splintered bark chips and leaves kicked up when a forest branch lands.
+  function spawnBranchDebris(system, x, y) {
+    spawnBurst(
+      system,
+      x,
+      y,
+      12,
+      ['#5a3d24', '#3e2a18', '#4c7a3a', '#6b9c52'],
+      'rect',
+      [70, 200],
+      [0.4, 0.8]
+    );
+  }
+
   function updateParticles(system, dt) {
     system.particles = system.particles.filter((p) => {
       p.vy += GRAVITY * dt;
@@ -80,6 +94,7 @@
     resetParticles,
     spawnBarrelDebris,
     spawnBirdDebris,
+    spawnBranchDebris,
     updateParticles,
   };
 })();

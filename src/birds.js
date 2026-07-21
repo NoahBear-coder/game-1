@@ -19,7 +19,8 @@
     { section: 'open', axis: 'v', dir: 1, center: 400, range: [4250, 5150], drift: 110, speed: 110, count: 2 },
     { section: 'tunnel', axis: 'h', dir: -1, center: 3800, range: [860, 1590], drift: 70, speed: 130, count: 2 },
     { section: 'bridge', axis: 'h', dir: -1, center: 3800, range: [1800, 2500], drift: 80, speed: 120, count: 2 },
-  ]; // count: 2 -> at most 2 bird spawns per section per run
+    { section: 'desert', axis: 'h', dir: -1, center: 3800, range: [2720, 3430], drift: 90, speed: 125, count: 2 },
+  ]; // count: 2 -> at most 2 bird spawns per section per run (forest uses branches.js instead)
 
   const BIRD_RADIUS = 13;
 

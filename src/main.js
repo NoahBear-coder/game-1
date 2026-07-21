@@ -2,13 +2,24 @@
 // main game loop. Kept deliberately thin - all real logic lives in the
 // dedicated modules (world, car, camera, collision, gameState, render).
 (function () {
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
-
   const canvas = document.getElementById('game');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
   const ctx = canvas.getContext('2d');
+
+  // Full-window canvas: resized to fill the viewport, and kept in sync on
+  // resize since every draw call below takes the current width/height as
+  // parameters rather than assuming a fixed size.
+  let CANVAS_WIDTH = window.innerWidth;
+  let CANVAS_HEIGHT = window.innerHeight;
+
+  function resizeCanvas() {
+    CANVAS_WIDTH = window.innerWidth;
+    CANVAS_HEIGHT = window.innerHeight;
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
 
   const { World } = window.Game;
   const { createCar, resetCar, createInput, updateCar } = window.Game.Car;
@@ -17,7 +28,9 @@
   const { STATUS, createGameState, startGame, triggerCrash, triggerWin, backToPlaying } = window.Game.GameState;
   const { createBulletSystem, resetBullets, fireBullet, updateBullets, checkBulletObstacleHits } = window.Game.Bullets;
   const { createBirdSystem, resetBirds, updateBirds, checkBirdCollisions, checkBulletBirdHits } = window.Game.Birds;
-  const { createParticleSystem, resetParticles, spawnBarrelDebris, spawnBirdDebris, updateParticles } = window.Game.Particles;
+  const { createBranchSystem, resetBranches, updateBranches, checkBranchCollisions } = window.Game.Branches;
+  const { createParticleSystem, resetParticles, spawnBarrelDebris, spawnBirdDebris, spawnBranchDebris, updateParticles } =
+    window.Game.Particles;
   const { render } = window.Game.Render;
 
   const car = createCar(World.start.x, World.start.y, World.start.angle);
@@ -26,11 +39,12 @@
   const gameState = createGameState();
   const bulletSystem = createBulletSystem();
   const birdSystem = createBirdSystem();
+  const branchSystem = createBranchSystem();
   const particleSystem = createParticleSystem();
 
   // Reset the car to the start, recenter the camera, re-roll the obstacle
-  // layout, clear any in-flight bullets, reset the birds, clear debris, and
-  // return to the PLAYING state.
+  // layout, clear any in-flight bullets, reset the birds and forest
+  // branches, clear debris, and return to the PLAYING state.
   function resetGame() {
     resetCar(car, World.start);
     camera.x = World.start.x;
@@ -38,6 +52,7 @@
     World.randomizeObstacles();
     resetBullets(bulletSystem);
     resetBirds(birdSystem);
+    resetBranches(branchSystem);
     resetParticles(particleSystem);
     input.firePressed = false;
     backToPlaying(gameState);
@@ -73,8 +88,13 @@
         spawnBirdDebris(particleSystem, h.x, h.y)
       );
       updateBirds(birdSystem, dt, World.getSectionAt(car.x, car.y));
+      updateBranches(branchSystem, dt).forEach((h) => spawnBranchDebris(particleSystem, h.x, h.y));
 
-      if (checkObstacleCollisions(car, World.obstacles) || checkBirdCollisions(car, birdSystem.birds)) {
+      if (
+        checkObstacleCollisions(car, World.obstacles) ||
+        checkBirdCollisions(car, birdSystem.birds) ||
+        checkBranchCollisions(car, branchSystem.hazards)
+      ) {
         triggerCrash(gameState);
       } else if (checkFinishCollision(car, World.finish)) {
         triggerWin(gameState);
@@ -103,7 +123,8 @@
       gameState,
       bulletSystem.bullets,
       birdSystem.birds,
-      particleSystem.particles
+      particleSystem.particles,
+      branchSystem.hazards
     );
 
     requestAnimationFrame(loop);

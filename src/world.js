@@ -29,11 +29,13 @@
 
   // --- Track layout -------------------------------------------------------
   // Start at the bottom, heading north (up) through the open section, then a
-  // 90 degree turn to the east into a narrow tunnel, then a wider bridge
-  // section, ending at the finish line.
+  // 90 degree turn to the east into a narrow tunnel, then a wider bridge,
+  // then a sandy desert stretch, then a forest, ending at the finish line.
   const OPEN_WIDTH = 300;
   const TUNNEL_WIDTH = 200; // narrower than open/bridge, but wide enough for the car to weave around obstacles
   const BRIDGE_WIDTH = 220;
+  const DESERT_WIDTH = 260;
+  const FOREST_WIDTH = 280;
 
   const start = { x: 400, y: 5200, angle: -Math.PI / 2 };
 
@@ -60,15 +62,27 @@
 
   const bridgeSection = straightPoints(1750, 3800, 2550, 3800, 12, BRIDGE_WIDTH, 'bridge');
 
+  // Widen from the bridge into a sandy desert stretch.
+  const desertTransition = straightPoints(2550, 3800, 2650, 3800, 4, (BRIDGE_WIDTH + DESERT_WIDTH) / 2, 'desert');
+  const desertSection = straightPoints(2650, 3800, 3500, 3800, 14, DESERT_WIDTH, 'desert');
+
+  // Widen again into the forest that leads to the finish line.
+  const forestTransition = straightPoints(3500, 3800, 3600, 3800, 4, (DESERT_WIDTH + FOREST_WIDTH) / 2, 'forest');
+  const forestSection = straightPoints(3600, 3800, 4450, 3800, 14, FOREST_WIDTH, 'forest');
+
   const centerline = [
     ...openSection,
     ...turnSection,
     ...tunnelSection,
     ...transitionSection,
     ...bridgeSection,
+    ...desertTransition,
+    ...desertSection,
+    ...forestTransition,
+    ...forestSection,
   ];
 
-  const finish = { x: 2500, y: 3800 - BRIDGE_WIDTH / 2, width: 50, height: BRIDGE_WIDTH };
+  const finish = { x: 4400, y: 3800 - FOREST_WIDTH / 2, width: 50, height: FOREST_WIDTH };
 
   // --- Obstacles ------------------------------------------------------------
   // Obstacles are generated randomly within each section's drivable band, so
@@ -89,7 +103,8 @@
     { section: 'open', axis: 'v', center: 400, along: [4300, 4950], halfWidth: OPEN_WIDTH / 2, count: 2, size: [55, 72] },
     { section: 'tunnel', axis: 'h', center: 3800, along: [900, 1560], halfWidth: TUNNEL_WIDTH / 2, count: 2, size: [36, 46] },
     { section: 'bridge', axis: 'h', center: 3800, along: [1850, 2440], halfWidth: BRIDGE_WIDTH / 2, count: 2, size: [48, 60] },
-  ];
+    { section: 'desert', axis: 'h', center: 3800, along: [2760, 3400], halfWidth: DESERT_WIDTH / 2, count: 2, size: [50, 66] },
+  ]; // note: forest has no static obstacles - it uses the falling-branch hazard (branches.js) instead
 
   function makeObstacles() {
     const result = [];
@@ -129,12 +144,16 @@
     turn: '#5a8f4a',
     tunnel: '#2b2b33',
     bridge: '#2e5f8a',
+    desert: '#c9a769',
+    forest: '#234a1e',
   };
 
   const sectionLabels = [
     { text: 'OPEN ROAD', x: 400, y: 4900, section: 'open' },
     { text: 'TUNNEL', x: 950, y: 3730, section: 'tunnel' },
     { text: 'BRIDGE', x: 1950, y: 3700, section: 'bridge' },
+    { text: 'DESERT', x: 3075, y: 3700, section: 'desert' },
+    { text: 'FOREST', x: 4025, y: 3690, section: 'forest' },
   ];
 
   // Returns the section tag ('open', 'turn', 'tunnel', 'bridge') of whichever

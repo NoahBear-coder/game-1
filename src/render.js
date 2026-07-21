@@ -7,6 +7,12 @@
     water: '#2f6f9e',
     waterDeep: '#245a83',
     rock: '#3c3b44',
+    sand: '#d8c48a',
+    sandDune: '#c9a769',
+    forestFloor: '#1f3d1a',
+    treeDark: '#1a3016',
+    treeMid: '#2f5233',
+    treeLight: '#3f6b41',
   };
 
   // Per-section road styling: outer curb, edge line, and asphalt surface.
@@ -15,6 +21,8 @@
     turn: { curb: '#26282e', edge: '#e9e3c4', surface: '#40464e' },
     tunnel: { curb: '#3d414c', edge: '#5a6070', surface: '#191a20' },
     bridge: { curb: '#8a7550', edge: '#d8cba0', surface: '#463f38' },
+    desert: { curb: '#8a6a3a', edge: '#e8d9a8', surface: '#c9a769' },
+    forest: { curb: '#2e4620', edge: '#c9c08a', surface: '#5a4632' },
   };
 
   // Deterministic 0..1 hash from integer cell coordinates (for scenery).
@@ -41,7 +49,12 @@
       if (minX === Infinity) return null;
       return { minX, maxX, minY, maxY, maxW, cy: (minY + maxY) / 2 };
     }
-    world.__regions = { tunnel: bounds('tunnel'), bridge: bounds('bridge') };
+    world.__regions = {
+      tunnel: bounds('tunnel'),
+      bridge: bounds('bridge'),
+      desert: bounds('desert'),
+      forest: bounds('forest'),
+    };
     return world.__regions;
   }
 
@@ -125,6 +138,50 @@
           else ctx.lineTo(px, wy + oy);
         }
         ctx.stroke();
+      }
+    }
+
+    // Sand dunes flanking the desert stretch.
+    if (regions.desert) {
+      const d = regions.desert;
+      const x = d.minX - 60 + offset.x;
+      const y = d.cy - d.maxW / 2 - 100 + offset.y;
+      const w = d.maxX - d.minX + 120;
+      const h = d.maxW + 200;
+      ctx.fillStyle = COLORS.sand;
+      ctx.fillRect(x, y, w, h);
+      // Dune ridges: soft overlapping ellipses in a slightly darker sand tone.
+      for (let i = 0; i < 26; i++) {
+        const rx = x + hash(i, 11) * w;
+        const ry = y + hash(i, 12) * h;
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, 40 + hash(i, 13) * 50, 14 + hash(i, 14) * 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Dense tree canopy flanking the forest stretch.
+    if (regions.forest) {
+      const f = regions.forest;
+      const x = f.minX - 80 + offset.x;
+      const y = f.cy - f.maxW / 2 - 140 + offset.y;
+      const w = f.maxX - f.minX + 160;
+      const h = f.maxW + 280;
+      ctx.fillStyle = COLORS.forestFloor;
+      ctx.fillRect(x, y, w, h);
+      // Overlapping canopy blobs, scattered by section hash so they're stable
+      // frame-to-frame but vary in size/shade for a dense-woods look. Drawn
+      // over the whole region - drawTrack paints the road on top afterward,
+      // so trees only end up reading as flanking the road, not covering it.
+      const treeColors = [COLORS.treeDark, COLORS.treeMid, COLORS.treeLight];
+      for (let i = 0; i < 90; i++) {
+        const rx = x + hash(i, 21) * w;
+        const ry = y + hash(i, 22) * h;
+        ctx.fillStyle = treeColors[Math.floor(hash(i, 23) * treeColors.length)];
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, 22 + hash(i, 24) * 20, 22 + hash(i, 25) * 20, 0, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
@@ -220,35 +277,68 @@
     ctx.textBaseline = 'alphabetic';
   }
 
-  // --- Obstacles: hazard barrels with a soft shadow ------------------------
+  // --- Obstacles: hazard barrels (rocks in the desert), with a soft shadow --
+  function drawRockObstacle(ctx, o, x, y, cx) {
+    // Ground shadow.
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 3, y + o.height + 2, o.width * 0.55, o.height * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const grad = ctx.createLinearGradient(x, y, x + o.width, y + o.height);
+    grad.addColorStop(0, '#9a8d78');
+    grad.addColorStop(0.5, '#7d7264');
+    grad.addColorStop(1, '#5c5344');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(cx, y + o.height / 2, o.width / 2, o.height / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#453f34';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // A couple of darker facets for a chiseled rock look.
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(cx - o.width * 0.15, y + o.height * 0.35, o.width * 0.22, o.height * 0.18, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawBarrelObstacle(ctx, o, x, y, cx) {
+    // Ground shadow.
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 4, y + o.height + 3, o.width * 0.55, o.height * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Barrel body.
+    const grad = ctx.createLinearGradient(x, 0, x + o.width, 0);
+    grad.addColorStop(0, '#c0521f');
+    grad.addColorStop(0.5, '#ef7a2c');
+    grad.addColorStop(1, '#a8441a');
+    ctx.fillStyle = grad;
+    roundRectPath(ctx, x, y, o.width, o.height, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#6e2c0f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Reflective white hazard stripes.
+    ctx.fillStyle = 'rgba(245,245,245,0.9)';
+    ctx.fillRect(x + 3, y + o.height * 0.24, o.width - 6, o.height * 0.16);
+    ctx.fillRect(x + 3, y + o.height * 0.6, o.width - 6, o.height * 0.16);
+  }
+
   function drawObstacles(ctx, obstacles, offset) {
     obstacles.forEach((o) => {
       const x = o.x + offset.x;
       const y = o.y + offset.y;
       const cx = x + o.width / 2;
-
-      // Ground shadow.
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.beginPath();
-      ctx.ellipse(cx + 4, y + o.height + 3, o.width * 0.55, o.height * 0.22, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Barrel body.
-      const grad = ctx.createLinearGradient(x, 0, x + o.width, 0);
-      grad.addColorStop(0, '#c0521f');
-      grad.addColorStop(0.5, '#ef7a2c');
-      grad.addColorStop(1, '#a8441a');
-      ctx.fillStyle = grad;
-      roundRectPath(ctx, x, y, o.width, o.height, 8);
-      ctx.fill();
-      ctx.strokeStyle = '#6e2c0f';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Reflective white hazard stripes.
-      ctx.fillStyle = 'rgba(245,245,245,0.9)';
-      ctx.fillRect(x + 3, y + o.height * 0.24, o.width - 6, o.height * 0.16);
-      ctx.fillRect(x + 3, y + o.height * 0.6, o.width - 6, o.height * 0.16);
+      if (o.section === 'desert') {
+        drawRockObstacle(ctx, o, x, y, cx);
+      } else {
+        drawBarrelObstacle(ctx, o, x, y, cx);
+      }
     });
   }
 
@@ -314,24 +404,15 @@
       ctx.ellipse(x, y + 16, b.radius * 0.9, b.radius * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Soft halo behind the bird - barely visible in daylight but keeps it
-      // from vanishing against the dark tunnel surface/shadow.
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, b.radius * 2.4);
-      glow.addColorStop(0, 'rgba(255,247,214,0.55)');
-      glow.addColorStop(1, 'rgba(255,247,214,0)');
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(x, y, b.radius * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(facing);
 
-      // Wings: a simple V-shape that flaps via a sine wave. Outlined in a
-      // light color so the silhouette reads against dark backgrounds too.
-      ctx.strokeStyle = '#f2e9c9';
-      ctx.lineWidth = 4.5;
+      // Wings: a simple V-shape that flaps via a sine wave. A white outline
+      // is drawn first (wider) and the dark wing stroked on top, so the
+      // silhouette reads clearly against dark backgrounds like the tunnel.
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5.5;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(-b.radius, -flap * b.radius * 0.8);
@@ -351,11 +432,78 @@
       ctx.beginPath();
       ctx.ellipse(0, 0, b.radius * 0.4, b.radius * 0.3, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#f2e9c9';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
       ctx.restore();
+    });
+  }
+
+  // --- Forest branch hazard --------------------------------------------------
+  function drawBranches(ctx, hazards, offset) {
+    const { WARNING_DURATION, IMPACT_DURATION, IMPACT_RADIUS } = window.Game.Branches;
+    hazards.forEach((h) => {
+      const x = h.x + offset.x;
+      const y = h.y + offset.y;
+
+      if (h.phase === 'warning') {
+        // Telegraph: a dark shadow that grows to the branch's landing size,
+        // pulsing so it reads as "something about to land" rather than a
+        // static obstacle.
+        const progress = 1 - h.timer / WARNING_DURATION;
+        const pulse = 0.75 + 0.25 * Math.sin(Date.now() / 90);
+        ctx.fillStyle = `rgba(20,15,8,${0.25 + 0.35 * progress})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y, IMPACT_RADIUS * progress * pulse, IMPACT_RADIUS * 0.55 * progress * pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (h.phase === 'impact') {
+        // Fade the branch out right at the end of its life so it doesn't
+        // just pop away.
+        const fadeIn = Math.min(1, (IMPACT_DURATION - h.timer) / 0.15);
+        const fadeOut = Math.min(1, h.timer / 0.2);
+        ctx.save();
+        ctx.globalAlpha = Math.min(fadeIn, fadeOut);
+        ctx.translate(x, y);
+        ctx.rotate(h.rot);
+
+        // Ground shadow.
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(2, 4, IMPACT_RADIUS * 1.1, IMPACT_RADIUS * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Log body.
+        const grad = ctx.createLinearGradient(-IMPACT_RADIUS, 0, IMPACT_RADIUS, 0);
+        grad.addColorStop(0, '#3e2a18');
+        grad.addColorStop(0.5, '#5a3d24');
+        grad.addColorStop(1, '#3e2a18');
+        ctx.fillStyle = grad;
+        roundRectPath(ctx, -IMPACT_RADIUS, -IMPACT_RADIUS * 0.32, IMPACT_RADIUS * 2, IMPACT_RADIUS * 0.64, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#241708';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Snapped side-branches and leaf tufts for silhouette variety.
+        ctx.strokeStyle = '#3e2a18';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        [-1, 1].forEach((side) => {
+          ctx.beginPath();
+          ctx.moveTo(side * IMPACT_RADIUS * 0.3, 0);
+          ctx.lineTo(side * IMPACT_RADIUS * 0.55, -IMPACT_RADIUS * 0.55);
+          ctx.stroke();
+        });
+        ctx.fillStyle = '#4c7a3a';
+        [-1, 1].forEach((side) => {
+          ctx.beginPath();
+          ctx.ellipse(side * IMPACT_RADIUS * 0.6, -IMPACT_RADIUS * 0.6, 7, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      }
     });
   }
 
@@ -501,8 +649,8 @@
   }
 
   function drawAmmoHud(ctx, canvasWidth, ammo, maxAmmo) {
-    const panelW = 140, panelH = 34;
-    const x = canvasWidth - panelW - 12;
+    const panelW = 58 + maxAmmo * 13 + 10, panelH = 34;
+    const x = canvasWidth / 2 - panelW / 2;
     const y = 12;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     roundRectPath(ctx, x, y, panelW, panelH, 8);
@@ -570,8 +718,8 @@
       ['Up / W accelerate    Down / S brake or reverse', '#ffffff'],
       ['Left / A and Right / D to turn', '#ffffff'],
       ['', '#fff'],
-      ['Race through the open road, tunnel, and bridge', '#cfe8ff'],
-      ['to reach the checkered FINISH line.', '#cfe8ff'],
+      ['Race through the open road, tunnel, bridge, desert,', '#cfe8ff'],
+      ['and forest to reach the checkered FINISH line.', '#cfe8ff'],
       ['', '#fff'],
       ['Dodge the orange barrels — a crash resets you', '#ff9a7a'],
       ['Press SPACE to shoot a barrel — you only get 10 shots', '#ffd23f'],
@@ -618,7 +766,7 @@
   }
 
   // --- Main entry ----------------------------------------------------------
-  function render(ctx, canvasWidth, canvasHeight, world, car, offset, gameState, bullets, birds, particles) {
+  function render(ctx, canvasWidth, canvasHeight, world, car, offset, gameState, bullets, birds, particles, branches) {
     if (gameState.status === 'splash') {
       drawSplashScreen(ctx, canvasWidth, canvasHeight);
       return;
@@ -629,6 +777,7 @@
     drawTrack(ctx, world, offset);
     drawFinish(ctx, world.finish, offset);
     drawObstacles(ctx, world.obstacles, offset);
+    if (branches) drawBranches(ctx, branches, offset);
     if (bullets) drawBullets(ctx, bullets, offset);
     if (birds) drawBirds(ctx, birds, offset);
 
